@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Mic, RotateCcw, Copy, Share2 } from "lucide-react";
+import { Send, Mic, RotateCcw, Copy, Share2, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,8 +29,15 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
   ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Loaded from .env for dynamic configuration
+  const fileUploadEndpoint = import.meta.env.VITE_FILE_UPLOAD_ENDPOINT || '/api/upload';
+  const aiEndpoint = import.meta.env.VITE_AI_ENDPOINT || '/api/generate';
+  const aiModel = import.meta.env.VITE_AI_MODEL || 'default';
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -69,6 +76,40 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  // Uses VITE_FILE_UPLOAD_ENDPOINT to send file for analysis
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingFile(true);
+
+    // Add user message showing file upload
+    const fileMessage: Message = {
+      id: Date.now().toString(),
+      role: "user",
+      content: `📎 Uploaded file: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`,
+      timestamp: new Date(),
+    };
+    setMessages((prev) => [...prev, fileMessage]);
+
+    // Simulate file analysis (in production, this would call fileUploadEndpoint)
+    setTimeout(() => {
+      const analysisMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: `I've received your file "${file.name}". File analysis capabilities will be available once connected to the AI backend. The file would be sent to: ${fileUploadEndpoint}`,
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, analysisMessage]);
+      setUploadingFile(false);
+    }, 1500);
+
+    // Reset file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
     }
   };
 
@@ -163,16 +204,34 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
                 className="min-h-[60px] resize-none bg-transparent border-0 focus-visible:ring-0"
               />
               <div className="flex flex-col gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept="*/*"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingFile}
+                  className="rounded-[18px] hover:animate-bounce hover:shadow-silver"
+                  title="Upload file for analysis"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="rounded-[18px] hover:animate-bounce hover:shadow-silver"
+                  title="Voice input"
                 >
                   <Mic className="h-5 w-5" />
                 </Button>
                 <Button
                   onClick={handleSend}
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || uploadingFile}
                   className="rounded-[18px] bg-secondary hover:bg-secondary/90 text-secondary-foreground hover:animate-bounce hover:shadow-silver"
                   size="icon"
                 >
