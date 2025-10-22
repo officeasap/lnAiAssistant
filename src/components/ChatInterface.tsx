@@ -207,7 +207,7 @@ export const ChatInterface = ({
         </h2>
       </div>
 
-      <ScrollArea className="flex-1 px-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 px-2 sm:px-4 overflow-y-auto" ref={scrollRef}>
         <div className="max-w-3xl mx-auto py-6 space-y-6">
           {messages.map((message: any, index: number) => (
             <motion.div
@@ -217,14 +217,15 @@ export const ChatInterface = ({
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
               <Card
-                className={cn(
-                  "p-4 paper-twist animate-frame-bounce",
-                  "shadow-[0_0_10px_#98fdfc]",
-                  message.role === "user"
-                    ? "bg-card ml-auto max-w-[85%]"
-                    : "bg-card mr-auto max-w-[85%]"
-                )}
-              >
+  className={cn(
+    "p-4 paper-twist animate-frame-bounce",
+    "shadow-[0_0_10px_#98fdfc]",
+    message.role === "user"
+      ? "bg-card ml-auto max-w-[85%] sm:max-w-[70%] rounded-xl sm:rounded-2xl"
+      : "bg-card mr-auto max-w-[85%] sm:max-w-[70%] rounded-xl sm:rounded-2xl"
+  )}
+>
+
                 <div className="flex items-start gap-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
@@ -243,15 +244,14 @@ export const ChatInterface = ({
                       </span>
                     </div>
                     <p
-                      className={cn(
-                        "text-sm whitespace-pre-wrap",
-                        message.role === "assistant"
-                          ? "text-[#f0f051]"
-                          : "text-[#e0f7ff]"
-                      )}
-                    >
-                      {message.content}
-                    </p>
+  className={cn(
+    "text-sm sm:text-base whitespace-pre-wrap leading-relaxed",
+    message.role === "assistant" ? "text-[#f0f051]" : "text-[#e0f7ff]"
+  )}
+>
+  {message.content}
+</p>
+
                   </div>
 
                   {message.role === "assistant" && (
@@ -302,7 +302,8 @@ export const ChatInterface = ({
           ))}
 
           {isTyping && (
-            <Card className="p-4 paper-twist shadow-[0_0_10px_#98fdfc] max-w-[85%]">
+            <Card className="p-4 paper-twist shadow-[0_0_10px_#98fdfc] max-w-[85%] sm:max-w-[70%] rounded-xl sm:rounded-2xl ml-auto mr-auto">
+
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
                   <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
@@ -324,69 +325,69 @@ export const ChatInterface = ({
         </div>
       </ScrollArea>
 
-      {/* Footer */}
-      <div className="border-t border-border p-4">
-        <div className="max-w-3xl mx-auto">
-          <Card className="p-4 paper-twist shadow-[0_0_10px_#98fdfc]">
-            <div className="flex gap-2">
-              <Textarea
-                ref={textareaRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyPress}
-                placeholder="Message LONI ASSISTANT..."
-                className="min-h-[60px] resize-none bg-transparent border-0 focus-visible:ring-0"
-              />
+     {/* Footer */}
+<div className="border-t border-border p-4">
+  <div className="max-w-3xl mx-auto">
+    <Card className="p-4 paper-twist shadow-[0_0_10px_#98fdfc] w-full rounded-xl sm:rounded-2xl">
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Textarea
+          ref={textareaRef}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyPress}
+          placeholder="Message LONI ASSISTANT..."
+          className="min-h-[60px] resize-none bg-transparent border-0 focus-visible:ring-0 text-sm sm:text-base flex-1"
+        />
 
-              <div className="flex flex-col gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  accept="*/*"
-                />
+        <div className="flex gap-2 sm:flex-col">
+          <input
+            ref={fileInputRef}
+            type="file"
+            onChange={handleFileUpload}
+            className="hidden"
+            accept="*/*"
+          />
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingFile}
-                  className="rounded-[18px] hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
-                >
-                  <Paperclip className="h-5 w-5 text-[#c8f051]" />
-                </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingFile}
+            className="rounded-[18px] hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
+          >
+            <Paperclip className="h-5 w-5 text-[#c8f051]" />
+          </Button>
 
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-[18px] hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
-                  title="Voice input (coming soon)"
-                  disabled
-                >
-                  <Mic className="h-5 w-5 text-[#c8f051]" />
-                </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-[18px] hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
+            title="Voice input (coming soon)"
+            disabled
+          >
+            <Mic className="h-5 w-5 text-[#c8f051]" />
+          </Button>
 
-                <Button
-                  onClick={() => handleSend()}
-                  disabled={!input.trim() || uploadingFile}
-                  className="rounded-[18px] bg-secondary hover:bg-secondary/90 text-secondary-foreground hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
-                  size="icon"
-                  title="Send message"
-                >
-                  <Send className="h-5 w-5 text-[#c8f051]" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-
-          <p className="text-xs text-center text-muted-foreground mt-2">
-            Mode:{" "}
-            <span className="text-primary font-semibold">{selectedMode}</span>
-          </p>
+          <Button
+            onClick={() => handleSend()}
+            disabled={!input.trim() || uploadingFile}
+            className="rounded-[18px] bg-secondary hover:bg-secondary/90 text-secondary-foreground hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
+            size="icon"
+            title="Send message"
+          >
+            <Send className="h-5 w-5 text-[#c8f051]" />
+          </Button>
         </div>
       </div>
+    </Card>
+
+    <p className="text-xs text-center text-muted-foreground mt-2">
+      Mode:{" "}
+      <span className="text-primary font-semibold">{selectedMode}</span>
+    </p>
+  </div>
+</div>
+
     </div>
   );
 };
-
