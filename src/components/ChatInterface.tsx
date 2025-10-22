@@ -200,8 +200,9 @@ export const ChatInterface = ({
   // 🎨 UI
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-center gap-3 py-3 border-b border-border bg-transparent">
+   {/* 🧠 Sticky Header */}
+<div className="sticky top-0 z-50 flex items-center justify-center gap-3 py-3 border-b border-border bg-background backdrop-blur-md">
+
         <img
           src="/loniAssistant1.png"
           alt="LONI Avatar"
