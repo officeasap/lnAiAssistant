@@ -69,13 +69,18 @@ export const ChatLayout = ({
           <div className="flex flex-col h-full">
             {/* ➕ New Chat Button */}
             <div className="p-4 border-b border-border">
-              <Button
-                onClick={onNewChat}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-[18px] hover:animate-bounce hover:shadow-[0_0_8px_#98fdfc]"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                New Chat
-              </Button>
+
+      <Button
+  onClick={() => {
+    onNewChat(); // ✅ trigger parent logic
+    if (isMobile) setSidebarOpen(false); // ✅ auto-close on mobile
+  }}
+  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-[18px] hover:animate-bounce hover:shadow-[0_0_8px_#98fdfc]"
+>
+  <Plus className="mr-2 h-4 w-4" />
+  New Chat
+</Button>
+
             </div>
 
             {/* 💬 Chat History */}
