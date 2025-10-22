@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useRef, useEffect } from "react";
 import { Send, Mic, RotateCcw, Copy, Share2, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { saveChatToFile } from "@/utils/loniFileManager"; // 💾 Local file-based logging helper
 
 interface Message {
   id: string;
@@ -16,17 +19,17 @@ interface Message {
 
 interface ChatInterfaceProps {
   selectedMode: string;
+  messages: { role: string; content: string }[];
+  setMessages: React.Dispatch<React.SetStateAction<any[]>>;
+  onModelActivity: (state: "idle" | "thinking" | "responding") => void;
 }
 
-export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "welcome",
-      role: "assistant",
-      content: "Welcome to LONI ASSISTANT. I'm your sovereign AI companion, ready to assist with elite precision. How may I help you today?",
-      timestamp: new Date(),
-    },
-  ]);
+export const ChatInterface = ({
+  selectedMode,
+  messages,
+  setMessages,
+  onModelActivity,
+}: ChatInterfaceProps) => {
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
@@ -34,10 +37,32 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Loaded from .env for dynamic configuration
-  const fileUploadEndpoint = import.meta.env.VITE_FILE_UPLOAD_ENDPOINT || '/api/upload';
-  const aiEndpoint = import.meta.env.VITE_AI_ENDPOINT || '/api/generate';
-  const aiModel = import.meta.env.VITE_AI_MODEL || 'default';
+  // 🔒 Securely loaded from environment
+  const OPENROUTER_API =
+    import.meta.env.VITE_OPENROUTER_API ||
+    "https://openrouter.ai/api/v1/chat/completions";
+  const OPENROUTER_KEY = import.meta.env.VITE_OPENROUTER_KEY || "";
+
+  let modelPool: string[] = [];
+  try {
+    modelPool = JSON.parse(import.meta.env.VITE_OPENROUTER_MODELS || "[]");
+  } catch {
+    modelPool = ["openai/gpt-3.5-turbo"];
+  }
+
+  // 🧠 Local + file logging
+  const logToLocal = (prompt: string, response: string, model: string) => {
+    const logs = JSON.parse(localStorage.getItem("chatLog") || "[]");
+    const entry = {
+      timestamp: new Date().toISOString(),
+      model,
+      prompt,
+      response,
+    };
+    logs.push(entry);
+    localStorage.setItem("chatLog", JSON.stringify(logs));
+    saveChatToFile(entry); // 💾 write to lonidata.txt silently
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -45,33 +70,81 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
     }
   }, [messages]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  // 🚀 Send message handler
+  const handleSend = async (customPrompt?: string) => {
+    const query = customPrompt || input;
+    if (!query.trim()) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: input,
+      content: query,
       timestamp: new Date(),
     };
 
     setMessages((prev) => [...prev, userMessage]);
-    setInput("");
+    if (!customPrompt) setInput("");
     setIsTyping(true);
+    onModelActivity("thinking");
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `I received your message in ${selectedMode} mode. This is a demonstration response. In a production environment, this would connect to an AI service to provide intelligent responses.`,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiMessage]);
-      setIsTyping(false);
-    }, 1500);
+    let aiText = "";
+    let success = false;
+
+    for (const model of modelPool) {
+      try {
+        const response = await fetch(OPENROUTER_API, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are LONI — an elite sovereign AI assistant. Respond clearly, precisely, and intelligently.",
+              },
+              { role: "user", content: query },
+            ],
+          }),
+        });
+
+        const result = await response.json();
+
+        if (!result || !result.choices?.[0]?.message?.content) {
+          console.error("⚠️ Empty or invalid API response:", result);
+          aiText =
+            "⚠️ LONI received an invalid or empty response. This could be due to rate limits or temporary model downtime.";
+        } else {
+          aiText = result.choices[0].message.content;
+        }
+
+        logToLocal(query, aiText, model);
+        success = true;
+        break;
+      } catch (err) {
+        console.warn(`⚠️ Model ${model} failed:`, err);
+        continue;
+      }
+    }
+
+    const aiMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: success
+        ? aiText
+        : "🚫 All models are currently unavailable or rate-limited. Please try again later.",
+      timestamp: new Date(),
+    };
+
+    setMessages((prev) => [...prev, aiMessage]);
+    setIsTyping(false);
+    onModelActivity("idle");
   };
 
+  // ⌨️ Handle Enter key
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -79,94 +152,134 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
     }
   };
 
-  // Uses VITE_FILE_UPLOAD_ENDPOINT to send file for analysis
+  // 📎 File upload handler
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     setUploadingFile(true);
 
-    // Add user message showing file upload
     const fileMessage: Message = {
       id: Date.now().toString(),
       role: "user",
-      content: `📎 Uploaded file: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`,
+      content: `📎 Uploaded file: ${file.name} (${(file.size / 1024).toFixed(
+        2
+      )} KB)`,
       timestamp: new Date(),
     };
     setMessages((prev) => [...prev, fileMessage]);
 
-    // Simulate file analysis (in production, this would call fileUploadEndpoint)
+    const analysisMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      role: "assistant",
+      content: `I've received your file "${file.name}". File analysis will be available soon.`,
+      timestamp: new Date(),
+    };
     setTimeout(() => {
-      const analysisMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: "assistant",
-        content: `I've received your file "${file.name}". File analysis capabilities will be available once connected to the AI backend. The file would be sent to: ${fileUploadEndpoint}`,
-        timestamp: new Date(),
-      };
       setMessages((prev) => [...prev, analysisMessage]);
       setUploadingFile(false);
     }, 1500);
-
-    // Reset file input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  // 🎨 UI Rendering
   return (
     <div className="flex flex-col h-full">
-      {/* Messages Area */}
+      {/* 🧠 Header */}
+      <div className="flex items-center justify-center gap-3 py-3 border-b border-border bg-transparent">
+        <img
+          src="/loniAssistant1.png"
+          alt="LONI Avatar"
+          className="w-8 h-8 rounded-full shadow-[0_0_10px_#98fdfc]"
+        />
+        <h2 className="text-lg font-semibold text-[#c8f051]">
+          LONI ASSISTANT
+        </h2>
+      </div>
+
       <ScrollArea className="flex-1 px-4" ref={scrollRef}>
         <div className="max-w-3xl mx-auto py-6 space-y-6">
-          {messages.map((message, index) => (
+          {messages.map((message: any, index: number) => (
             <motion.div
-              key={message.id}
+              key={message.id || index}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: index * 0.05 }}
             >
               <Card
                 className={cn(
-                  "p-4 paper-twist animate-frame-bounce shadow-silver",
-                  message.role === "user" 
-                    ? "bg-card ml-auto max-w-[85%]" 
+                  "p-4 paper-twist animate-frame-bounce",
+                  "shadow-[0_0_10px_#98fdfc]",
+                  message.role === "user"
+                    ? "bg-card ml-auto max-w-[85%]"
                     : "bg-card mr-auto max-w-[85%]"
                 )}
               >
                 <div className="flex items-start gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-sm font-semibold">
-                        {message.role === "user" ? "You" : "LONI"}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {message.timestamp.toLocaleTimeString()}
-                      </span>
-                    </div>
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                  </div>
+  <div className="flex-1">
+    <div className="flex items-center gap-2 mb-2">
+      <span
+        className={cn(
+          "text-sm font-semibold",
+          message.role === "assistant" ? "text-[#f0f051]" : "text-[#50c8f0]"
+        )}
+      >
+        {message.role === "user" ? "You" : "LONI"}
+      </span>
+      <span className="text-xs text-[#a0a0a0]">
+        {new Date().toLocaleTimeString()}
+      </span>
+    </div>
+    <p
+      className={cn(
+        "text-sm whitespace-pre-wrap",
+        message.role === "assistant" ? "text-[#f0f051]" : "text-[#e0f7ff]"
+      )}
+    >
+      {message.content}
+    </p>
+</div>
                   {message.role === "assistant" && (
                     <div className="flex gap-1">
+                      {/* 📋 Copy */}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-[18px] hover:animate-bounce"
+                        onClick={() =>
+                          navigator.clipboard.writeText(message.content)
+                        }
+                        title="Copy message"
                       >
-                        <Copy className="h-4 w-4" />
+                        <Copy className="h-4 w-4 text-[#c8f051]" />
                       </Button>
+
+                      {/* 🔁 Regenerate */}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-[18px] hover:animate-bounce"
+                        onClick={() =>
+                          handleSend(messages[messages.length - 2]?.content || "")
+                        }
+                        title="Regenerate response"
                       >
-                        <RotateCcw className="h-4 w-4" />
+                        <RotateCcw className="h-4 w-4 text-[#c8f051]" />
                       </Button>
+
+                      {/* 📤 Share */}
                       <Button
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 rounded-[18px] hover:animate-bounce"
+                        onClick={() =>
+                          navigator.share?.({
+                            title: "LONI Response",
+                            text: message.content,
+                          })
+                        }
+                        title="Share response"
                       >
-                        <Share2 className="h-4 w-4" />
+                        <Share2 className="h-4 w-4 text-[#c8f051]" />
                       </Button>
                     </div>
                   )}
@@ -174,26 +287,34 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
               </Card>
             </motion.div>
           ))}
-          
+
           {isTyping && (
-            <Card className="p-4 paper-twist animate-frame-bounce shadow-silver max-w-[85%]">
+            <Card className="p-4 paper-twist shadow-[0_0_10px_#98fdfc] max-w-[85%]">
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
+                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
+                  <span
+                    className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                    style={{ animationDelay: "150ms" }}
+                  ></span>
+                  <span
+                    className="w-2 h-2 bg-primary rounded-full animate-bounce"
+                    style={{ animationDelay: "300ms" }}
+                  ></span>
                 </div>
-                <span className="text-sm text-muted-foreground">LONI is thinking...</span>
+                <span className="text-sm text-[#c8f051]">
+                  LONI is thinking...
+                </span>
               </div>
             </Card>
           )}
         </div>
       </ScrollArea>
 
-      {/* Input Area */}
+      {/* Footer */}
       <div className="border-t border-border p-4">
         <div className="max-w-3xl mx-auto">
-          <Card className="p-4 paper-twist shadow-silver">
+          <Card className="p-4 paper-twist shadow-[0_0_10px_#98fdfc]">
             <div className="flex gap-2">
               <Textarea
                 ref={textareaRef}
@@ -203,6 +324,7 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
                 placeholder="Message LONI ASSISTANT..."
                 className="min-h-[60px] resize-none bg-transparent border-0 focus-visible:ring-0"
               />
+
               <div className="flex flex-col gap-2">
                 <input
                   ref={fileInputRef}
@@ -211,37 +333,43 @@ export const ChatInterface = ({ selectedMode }: ChatInterfaceProps) => {
                   className="hidden"
                   accept="*/*"
                 />
+
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={uploadingFile}
-                  className="rounded-[18px] hover:animate-bounce hover:shadow-silver"
-                  title="Upload file for analysis"
+                  className="rounded-[18px] hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
                 >
-                  <Paperclip className="h-5 w-5" />
+                  <Paperclip className="h-5 w-5 text-[#c8f051]" />
                 </Button>
+
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="rounded-[18px] hover:animate-bounce hover:shadow-silver"
-                  title="Voice input"
+                  className="rounded-[18px] hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
+                  title="Voice input (coming soon)"
+                  disabled
                 >
-                  <Mic className="h-5 w-5" />
+                  <Mic className="h-5 w-5 text-[#c8f051]" />
                 </Button>
+
                 <Button
-                  onClick={handleSend}
+                  onClick={() => handleSend()}
                   disabled={!input.trim() || uploadingFile}
-                  className="rounded-[18px] bg-secondary hover:bg-secondary/90 text-secondary-foreground hover:animate-bounce hover:shadow-silver"
+                  className="rounded-[18px] bg-secondary hover:bg-secondary/90 text-secondary-foreground hover:animate-bounce shadow-[0_0_10px_#98fdfc]"
                   size="icon"
+                  title="Send message"
                 >
-                  <Send className="h-5 w-5" />
+                  <Send className="h-5 w-5 text-[#c8f051]" />
                 </Button>
               </div>
             </div>
           </Card>
+
           <p className="text-xs text-center text-muted-foreground mt-2">
-            Mode: <span className="text-primary font-semibold">{selectedMode}</span>
+            Mode:{" "}
+            <span className="text-primary font-semibold">{selectedMode}</span>
           </p>
         </div>
       </div>

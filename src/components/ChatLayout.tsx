@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { Menu, Plus, Settings, MessageSquare, Folder, Pin } from "lucide-react";
+import {
+  Menu, Plus, Settings, MessageSquare, Folder, Pin, Loader2
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
@@ -8,9 +10,19 @@ interface ChatLayoutProps {
   children: React.ReactNode;
   onNewChat: () => void;
   onOpenSettings: () => void;
+  onSelectChat?: (id: string) => void;
+  modelStatus?: string;
+  isStreaming?: boolean;
 }
 
-export const ChatLayout = ({ children, onNewChat, onOpenSettings }: ChatLayoutProps) => {
+export const ChatLayout = ({
+  children,
+  onNewChat,
+  onOpenSettings,
+  onSelectChat,
+  modelStatus = "idle",
+  isStreaming = false
+}: ChatLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [chatHistory] = useState([
     { id: "1", title: "Previous conversation", timestamp: "2 hours ago" },
@@ -47,17 +59,18 @@ export const ChatLayout = ({ children, onNewChat, onOpenSettings }: ChatLayoutPr
                   <Pin className="h-4 w-4" />
                   <span>Pinned</span>
                 </div>
-                
+
                 <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground">
                   <MessageSquare className="h-4 w-4" />
                   <span>Recent</span>
                 </div>
-                
+
                 {chatHistory.map((chat) => (
                   <Button
                     key={chat.id}
                     variant="ghost"
                     className="w-full justify-start text-left rounded-[18px] hover:bg-sidebar-accent hover:animate-bounce"
+                    onClick={() => onSelectChat?.(chat.id)}
                   >
                     <div className="flex flex-col items-start overflow-hidden">
                       <span className="truncate w-full text-sm">{chat.title}</span>
@@ -91,22 +104,36 @@ export const ChatLayout = ({ children, onNewChat, onOpenSettings }: ChatLayoutPr
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="border-b border-border px-4 py-3 flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="rounded-[18px] hover:animate-bounce hover:shadow-silver"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-bold">LONI ASSISTANT</h1>
+        <header className="border-b border-border px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="rounded-[18px] hover:animate-bounce hover:shadow-silver"
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold">LONI ASSISTANT</h1>
+          </div>
+
+          {/* Model Status */}
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {isStreaming ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Responding...</span>
+              </>
+            ) : (
+              <span>Status: {modelStatus}</span>
+            )}
+          </div>
         </header>
 
         {/* Chat Area */}
-        <div className="flex-1 overflow-hidden">
+        <ScrollArea className="flex-1 overflow-y-auto px-4 py-2">
           {children}
-        </div>
+        </ScrollArea>
       </div>
     </div>
   );

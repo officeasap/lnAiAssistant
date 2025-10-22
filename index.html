@@ -3,22 +3,85 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LONI ASSISTANT - Sovereign AI Assistant</title>
-    <meta name="description" content="LONI ASSISTANT - Your elite AI companion with sovereign-grade encryption and professional capabilities." />
-    <meta name="author" content="LONI" />
 
-    <meta property="og:title" content="LONI ASSISTANT - Sovereign AI Assistant" />
-    <meta property="og:description" content="Elite AI assistant with ChatGPT-level capabilities, encrypted and private." />
+    <title>LONI ASSISTANT — Sovereign AI Companion</title>
+
+    <meta
+      name="description"
+      content="LONI ASSISTANT — Your elite sovereign AI companion. Private, encrypted, and intelligent beyond boundaries."
+    />
+    <meta name="author" content="LONI AI" />
+
+    <!-- 🧠 Open Graph / Social Preview -->
+    <meta property="og:title" content="LONI ASSISTANT — Sovereign AI Companion" />
+    <meta
+      property="og:description"
+      content="Experience elite, sovereign-grade intelligence with LONI — your personal AI built for precision, privacy, and power."
+    />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta property="og:image" content="/assistanAI.png" />
+    <meta property="og:url" content="https://loni-assistant.local" />
 
+    <!-- 🐦 Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:title" content="LONI ASSISTANT — Sovereign AI Companion" />
+    <meta
+      name="twitter:description"
+      content="Private. Intelligent. Sovereign. Meet LONI — your advanced AI assistant."
+    />
+    <meta name="twitter:image" content="/assistanAI.png" />
+
+    <!-- 🧩 Icons / Favicons -->
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- 🖋 Fonts & Theme -->
+    <meta name="theme-color" content="#0a0a0a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
   </head>
 
-  <body>
-    <div id="root"></div>
+  <body
+    style="
+      background-color: #050505;
+      color: #c8f051;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 0;
+    "
+  >
+    <noscript>
+      <strong>
+        LONI ASSISTANT requires JavaScript to operate. Please enable it to continue.
+      </strong>
+    </noscript>
+
+    <!-- ⚡️ LONI App Root -->
+    <div
+      id="root"
+      style="
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+      "
+    >
+      <img
+        src="/assistanAI.png"
+        alt="LONI Logo"
+        style="width: 120px; height: 120px; filter: drop-shadow(0 0 10px #98fdfc);"
+      />
+    </div>
+
+    <!-- ⚙️ App Entry -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
