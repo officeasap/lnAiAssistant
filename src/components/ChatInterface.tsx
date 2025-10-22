@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { saveChatToFile } from "@/utils/loniFileManager"; // 💾 Local file-based logging helper
+import { saveChatToFile } from "@/utils/loniFileManager";
 
 interface Message {
   id: string;
@@ -37,7 +37,7 @@ export const ChatInterface = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // 🔒 Securely loaded from environment
+  // 🔒 Securely loaded from environment (Vercel-safe)
   const OPENROUTER_API =
     import.meta.env.VITE_OPENROUTER_API ||
     "https://openrouter.ai/api/v1/chat/completions";
@@ -45,12 +45,17 @@ export const ChatInterface = ({
 
   let modelPool: string[] = [];
   try {
-    modelPool = JSON.parse(import.meta.env.VITE_OPENROUTER_MODELS || "[]");
-  } catch {
-    modelPool = ["openai/gpt-3.5-turbo"];
+    const rawModels = import.meta.env.VITE_OPENROUTER_MODELS || "[]";
+    modelPool = JSON.parse(rawModels);
+    if (!Array.isArray(modelPool) || modelPool.length === 0) {
+      throw new Error("Model pool is empty");
+    }
+  } catch (err) {
+    console.warn("⚠️ Failed to parse model pool:", err);
+    modelPool = ["mistralai/mistral-7b-instruct:free"];
   }
 
-  // 🧠 Local + file logging
+  // 💾 Log chats locally and file-based
   const logToLocal = (prompt: string, response: string, model: string) => {
     const logs = JSON.parse(localStorage.getItem("chatLog") || "[]");
     const entry = {
@@ -61,7 +66,7 @@ export const ChatInterface = ({
     };
     logs.push(entry);
     localStorage.setItem("chatLog", JSON.stringify(logs));
-    saveChatToFile(entry); // 💾 write to lonidata.txt silently
+    saveChatToFile(entry);
   };
 
   useEffect(() => {
@@ -70,7 +75,7 @@ export const ChatInterface = ({
     }
   }, [messages]);
 
-  // 🚀 Send message handler
+  // 🚀 Message sending logic
   const handleSend = async (customPrompt?: string) => {
     const query = customPrompt || input;
     if (!query.trim()) return;
@@ -90,43 +95,48 @@ export const ChatInterface = ({
     let aiText = "";
     let success = false;
 
-    for (const model of modelPool) {
-      try {
-        const response = await fetch(OPENROUTER_API, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are LONI — an elite sovereign AI assistant. Respond clearly, precisely, and intelligently.",
-              },
-              { role: "user", content: query },
-            ],
-          }),
-        });
+    if (!OPENROUTER_KEY) {
+      console.error("🚫 Missing OpenRouter API key");
+      aiText =
+        "🚫 LONI is misconfigured. No API key was provided. Please check your environment variables.";
+    } else {
+      for (const model of modelPool) {
+        try {
+          const response = await fetch(OPENROUTER_API, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${OPENROUTER_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                {
+                  role: "system",
+                  content:
+                    "You are LONI — an elite sovereign AI assistant. Respond clearly, precisely, and intelligently.",
+                },
+                { role: "user", content: query },
+              ],
+            }),
+          });
 
-        const result = await response.json();
+          const result = await response.json();
+          console.log(`🔍 Model ${model} response:`, result);
 
-        if (!result || !result.choices?.[0]?.message?.content) {
-          console.error("⚠️ Empty or invalid API response:", result);
-          aiText =
-            "⚠️ LONI received an invalid or empty response. This could be due to rate limits or temporary model downtime.";
-        } else {
+          if (!result || !result.choices?.[0]?.message?.content) {
+            console.warn(`⚠️ Model ${model} returned empty or invalid response`);
+            continue;
+          }
+
           aiText = result.choices[0].message.content;
+          logToLocal(query, aiText, model);
+          success = true;
+          break;
+        } catch (err) {
+          console.error(`⚠️ Model ${model} threw error:`, err);
+          continue;
         }
-
-        logToLocal(query, aiText, model);
-        success = true;
-        break;
-      } catch (err) {
-        console.warn(`⚠️ Model ${model} failed:`, err);
-        continue;
       }
     }
 
@@ -135,7 +145,8 @@ export const ChatInterface = ({
       role: "assistant",
       content: success
         ? aiText
-        : "🚫 All models are currently unavailable or rate-limited. Please try again later.",
+        : aiText ||
+          "🚫 All models are currently unavailable or rate-limited. Please try again later.",
       timestamp: new Date(),
     };
 
@@ -144,7 +155,7 @@ export const ChatInterface = ({
     onModelActivity("idle");
   };
 
-  // ⌨️ Handle Enter key
+  // ⌨️ Send on Enter
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -152,7 +163,7 @@ export const ChatInterface = ({
     }
   };
 
-  // 📎 File upload handler
+  // 📎 File upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -181,10 +192,10 @@ export const ChatInterface = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // 🎨 UI Rendering
+  // 🎨 UI
   return (
     <div className="flex flex-col h-full">
-      {/* 🧠 Header */}
+      {/* Header */}
       <div className="flex items-center justify-center gap-3 py-3 border-b border-border bg-transparent">
         <img
           src="/loniAssistant1.png"
@@ -215,32 +226,36 @@ export const ChatInterface = ({
                 )}
               >
                 <div className="flex items-start gap-3">
-  <div className="flex-1">
-    <div className="flex items-center gap-2 mb-2">
-      <span
-        className={cn(
-          "text-sm font-semibold",
-          message.role === "assistant" ? "text-[#f0f051]" : "text-[#50c8f0]"
-        )}
-      >
-        {message.role === "user" ? "You" : "LONI"}
-      </span>
-      <span className="text-xs text-[#a0a0a0]">
-        {new Date().toLocaleTimeString()}
-      </span>
-    </div>
-    <p
-      className={cn(
-        "text-sm whitespace-pre-wrap",
-        message.role === "assistant" ? "text-[#f0f051]" : "text-[#e0f7ff]"
-      )}
-    >
-      {message.content}
-    </p>
-</div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className={cn(
+                          "text-sm font-semibold",
+                          message.role === "assistant"
+                            ? "text-[#f0f051]"
+                            : "text-[#50c8f0]"
+                        )}
+                      >
+                        {message.role === "user" ? "You" : "LONI"}
+                      </span>
+                      <span className="text-xs text-[#a0a0a0]">
+                        {new Date().toLocaleTimeString()}
+                      </span>
+                    </div>
+                    <p
+                      className={cn(
+                        "text-sm whitespace-pre-wrap",
+                        message.role === "assistant"
+                          ? "text-[#f0f051]"
+                          : "text-[#e0f7ff]"
+                      )}
+                    >
+                      {message.content}
+                    </p>
+                  </div>
+
                   {message.role === "assistant" && (
                     <div className="flex gap-1">
-                      {/* 📋 Copy */}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -253,7 +268,6 @@ export const ChatInterface = ({
                         <Copy className="h-4 w-4 text-[#c8f051]" />
                       </Button>
 
-                      {/* 🔁 Regenerate */}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -266,7 +280,6 @@ export const ChatInterface = ({
                         <RotateCcw className="h-4 w-4 text-[#c8f051]" />
                       </Button>
 
-                      {/* 📤 Share */}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -376,3 +389,4 @@ export const ChatInterface = ({
     </div>
   );
 };
+
