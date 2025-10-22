@@ -197,18 +197,6 @@ export const ChatInterface = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-
-  const handleNewChat = () => {
-  setMessages([]);
-  setSelectedMode("Quick Response");
-
-  if (window.innerWidth < 640) {
-    setSidebarOpen(false); // or toggle visibility class
-  }
-};
-
-
-  
   // 🎨 UI
   return (
     <div className="flex flex-col h-full">
@@ -408,3 +396,5 @@ export const ChatInterface = ({
     </div>
   );
 };
+
+
