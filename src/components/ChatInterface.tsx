@@ -70,10 +70,15 @@ export const ChatInterface = ({
   };
 
   useEffect(() => {
+  const timeout = setTimeout(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, 100); // ⏱️ delay ensures layout is ready
+
+  return () => clearTimeout(timeout);
+}, [messages]);
+
 
   // 🚀 Message sending logic
   const handleSend = async (customPrompt?: string) => {
@@ -192,6 +197,18 @@ export const ChatInterface = ({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+
+  const handleNewChat = () => {
+  setMessages([]);
+  setSelectedMode("Quick Response");
+
+  if (window.innerWidth < 640) {
+    setSidebarOpen(false); // or toggle visibility class
+  }
+};
+
+
+  
   // 🎨 UI
   return (
     <div className="flex flex-col h-full">
