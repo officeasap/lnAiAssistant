@@ -2,10 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="HandheldFriendly" content="true" />
+    <meta name="msapplication-tap-highlight" content="no" />
 
     <title>LONI ASSISTANT — Sovereign AI Companion</title>
-
     <meta
       name="description"
       content="LONI ASSISTANT — Your elite sovereign AI companion. Private, encrypted, and intelligent beyond boundaries."
@@ -39,7 +48,6 @@
     <link rel="manifest" href="/site.webmanifest" />
 
     <!-- 🖋 Fonts & Theme -->
-    <meta name="theme-color" content="#0a0a0a" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -54,7 +62,10 @@
       color: #c8f051;
       font-family: 'Inter', sans-serif;
       margin: 0;
-      padding: 0;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+      -webkit-font-smoothing: antialiased;
+      -webkit-text-size-adjust: 100%;
+      touch-action: manipulation;
     "
   >
     <noscript>
@@ -68,9 +79,12 @@
       id="root"
       style="
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 100vh;
+        min-height: 100dvh;
+        padding: 16px;
+        box-sizing: border-box;
       "
     >
       <img
@@ -84,4 +98,5 @@
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
 
